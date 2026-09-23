@@ -1,0 +1,16 @@
+.env
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+web_frontend/node_modules/
+web_frontend/dist/
+
+# 本地账单流水原件（含个人隐私，勿提交）
+*.pdf
+*.xlsx
+*.csv
+
+# 本地分析产物 / 个人笔记
+category-catalog.md
+*每日开销*.md

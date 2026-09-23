@@ -1,0 +1,94 @@
+export type Category = { name: string; amount: number; pct: number; count: number };
+export type Bucket = { label: string; count: number; amount: number };
+export type Detail = { name: string; meta: string; rows: [string, string][] };
+export type PeriodPayload = {
+  key: string;
+  title: string;
+  subtitle: string;
+  txnCount: number;
+  total: number;
+  grossTotal?: number;
+  countAll?: number;
+  purePct?: number | null;
+  dailyAvg: number;
+  maxTxn: number;
+  top2Pct: number;
+  peakNote: string;
+  dateRange: string;
+  categories: Category[];
+  daily: number[];
+  amountBuckets: Bucket[];
+  amountBucketsMerged: Bucket[];
+  details: Detail[];
+};
+export type LargeTxn = {
+  date: string;
+  amount: number;
+  category: string;
+  platform: string;
+  label: string;
+};
+export type BucketCategory = {
+  label: string;
+  count: number;
+  amount: number;
+  categories: Category[];
+};
+export type ReportTrends = {
+  totalPct: number | null;
+  countPct: number | null;
+  label: string | null;
+};
+export type ReportMeta = {
+  dateStart: string;
+  dateEnd: string;
+  title: string;
+  subtitle: string;
+  dateRange: string;
+  txnCount: number;
+  total: number;
+  periodAvg: number;
+  maxPeriodTotal: number;
+  maxPeriodLabel: string;
+  top2Pct: number;
+  top2Label: string;
+  periodCount: number;
+  largeTxnCount: number;
+  largeTxnTotal: number;
+  largeThreshold: number;
+  granularity: string;
+  pureSpending: boolean;
+  trends: ReportTrends;
+  sources: Record<string, { parsed: number; skipped: boolean; error?: string }>;
+  classifier?: { mode: string; learned_added: number };
+};
+export type PeriodTotal = {
+  key: string;
+  label: string;
+  total: number;
+  count: number;
+  totalPure: number;
+  countPure: number;
+  totalAll: number;
+  countAll: number;
+  purePct: number | null;
+};
+export type FullReport = {
+  meta: ReportMeta;
+  periodTotals: PeriodTotal[];
+  categories: Category[];
+  categoryDetails: Detail[];
+  amountBuckets: Bucket[];
+  amountBucketsMerged: Bucket[];
+  bucketCategories: BucketCategory[];
+  bucketCategoriesMerged: BucketCategory[];
+  largeTxns: LargeTxn[];
+  periods: PeriodPayload[];
+};
+export type ParserInfo = {
+  id: string;
+  displayName: string;
+  role: string;
+  filePatterns: string[];
+};
+export type Granularity = "month" | "week" | "3day" | "day";
