@@ -14,3 +14,7 @@ web_frontend/dist/
 # 本地分析产物 / 个人笔记
 category-catalog.md
 *每日开销*.md
+
+# CLI 生成的 Canvas 报表（保留 templates/ 模板）
+*.canvas.tsx
+!templates/
