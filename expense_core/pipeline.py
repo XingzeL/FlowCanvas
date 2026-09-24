@@ -5,13 +5,13 @@ from collections import defaultdict
 from expense_core.models import Txn
 
 MIRROR_KEYWORDS = (
-    "支付宝", "财付通", "微信", "蚂蚁", "余额宝", "理财通", "腾安基金",
-    "网商银行", "余利宝", "网上支付", "银联入账", "提现",
+    "支付宝", "财付通", "微信", "余额宝", "理财通", "网商银行", "余利宝",
+    "网上支付", "银联入账", "提现",
 )
 
 INVEST_KEYWORDS = (
-    "基金", "余额宝", "理财通", "雪球", "余利宝", "蚂蚁财富", "南方基金",
-    "投资理财", "网商银行", "小金库", "肯特瑞",
+    "基金", "定投", "余额宝", "理财通", "雪球", "余利宝", "蚂蚁财富", "南方基金",
+    "腾安基金", "基金销售", "投资理财", "网商银行", "小金库", "肯特瑞",
 )
 
 DEBT_KEYWORDS = (
@@ -73,32 +73,59 @@ def keyword_overlap(a: str, b: str) -> int:
     return sum(1 for k in keys if k in a and k in b)
 
 
+def _merchant_text_match(bt: Txn, pt: Txn) -> bool:
+    """Require shared merchant text; date+amount alone is not enough."""
+    from expense_core.stats import clean_counterparty
+
+    bc = clean_counterparty(bt.counterparty)
+    pc = clean_counterparty(pt.counterparty)
+    if len(bc) >= 2 and len(pc) >= 2 and (bc in pc or pc in bc):
+        return True
+    blob_b = bt.text_blob()
+    blob_p = pt.text_blob()
+    if len(pc) >= 2 and pc in blob_b:
+        return True
+    if len(bc) >= 2 and bc in blob_p:
+        return True
+    return False
+
+
+def _bank_matches_primary(bt: Txn, pt: Txn) -> bool:
+    if pt.dt != bt.dt or abs(pt.amount - bt.amount) > 0.011:
+        return False
+    blob_b = bt.text_blob()
+    blob_p = pt.text_blob()
+    if keyword_overlap(blob_b, blob_p) > 0:
+        return True
+    if "网银在线" in blob_b and "网银在线" not in blob_p:
+        return False
+    if is_mirror_channel(bt.counterparty, bt.description):
+        return True
+    return _merchant_text_match(bt, pt)
+
+
 def dedupe_transactions(
     primary: list[Txn], bank: list[Txn]
-) -> tuple[list[Txn], list[Txn]]:
+) -> tuple[list[Txn], list[tuple[Txn, str]]]:
     result = list(primary)
-    dropped: list[Txn] = []
+    excluded_from_dedupe: list[tuple[Txn, str]] = []
     used_bank: set[int] = set()
 
     for i, bt in enumerate(bank):
-        if is_mirror_channel(bt.counterparty, bt.description):
-            dropped.append(bt)
-            used_bank.add(i)
-            continue
         if is_investment(bt.counterparty, bt.description):
-            dropped.append(bt)
+            excluded_from_dedupe.append((bt, "investment"))
             used_bank.add(i)
             continue
         if is_debt(bt.counterparty, bt.description):
-            dropped.append(bt)
-            used_bank.add(i)
-            continue
-        if is_self_transfer(bt.counterparty, bt.description):
-            dropped.append(bt)
+            excluded_from_dedupe.append((bt, "debt"))
             used_bank.add(i)
             continue
         if is_non_spending(bt.counterparty, bt.description):
-            dropped.append(bt)
+            excluded_from_dedupe.append((bt, "non_spending"))
+            used_bank.add(i)
+            continue
+        if is_self_transfer(bt.counterparty, bt.description):
+            excluded_from_dedupe.append((bt, "transfer"))
             used_bank.add(i)
             continue
 
@@ -106,24 +133,16 @@ def dedupe_transactions(
         if i in used_bank:
             continue
         matched = False
-        blob_b = bt.text_blob()
         for pt in primary:
-            if pt.dt != bt.dt or abs(pt.amount - bt.amount) > 0.011:
-                continue
-            if keyword_overlap(blob_b, pt.text_blob()) > 0:
+            if _bank_matches_primary(bt, pt):
                 matched = True
                 break
-            if "网银在线" in blob_b and "网银在线" not in pt.text_blob():
-                continue
-            matched = True
-            break
         if matched:
-            dropped.append(bt)
             used_bank.add(i)
         else:
             result.append(bt)
 
-    return result, dropped
+    return result, excluded_from_dedupe
 
 
 def cancel_refunded(txns: list[Txn], refunds: list[tuple]) -> list[Txn]:
@@ -144,7 +163,7 @@ def cancel_refunded(txns: list[Txn], refunds: list[tuple]) -> list[Txn]:
 
 def apply_pure_filter(
     txns: list[Txn], cfg: dict
-) -> tuple[list[Txn], list[Txn], str]:
+) -> tuple[list[Txn], list[tuple[Txn, str]], str]:
     pure = cfg.get("pure_spending", {})
     if not pure.get("enabled", True):
         return txns, [], ""
@@ -154,12 +173,9 @@ def apply_pure_filter(
     excl_wechat_tf = pure.get("exclude_wechat_transfer", True)
 
     kept: list[Txn] = []
-    excluded: list[Txn] = []
+    excluded: list[tuple[Txn, str]] = []
     for t in txns:
         blob = t.text_blob()
-        if is_non_spending(t.counterparty, t.description, cfg):
-            excluded.append(t)
-            continue
         if excl_wechat_tf and (
             "转账备注:" in blob
             or t.description.strip() in ("微信红包", "转账")
@@ -168,28 +184,47 @@ def apply_pure_filter(
             or "极速退款" in blob
             or "买家主动还款" in blob
         ):
-            excluded.append(t)
+            excluded.append((t, "wechat_transfer"))
             continue
         if any(k in blob for k in kw_merchant):
-            excluded.append(t)
+            excluded.append((t, "rent"))
             continue
         if any(k in blob for k in kw_transfer):
-            excluded.append(t)
+            excluded.append((t, "transfer"))
+            continue
+        if is_investment(t.counterparty, t.description):
+            excluded.append((t, "investment"))
+            continue
+        if is_debt(t.counterparty, t.description):
+            excluded.append((t, "debt"))
+            continue
+        if is_non_spending(t.counterparty, t.description, cfg):
+            excluded.append((t, "non_spending"))
             continue
         kept.append(t)
 
-    excl_amt = sum(t.amount for t in excluded)
+    excl_amt = sum(t.amount for t, _ in excluded)
     note = f"已剔除转账/房租/取现/理财等 {len(excluded)} 笔，共 {excl_amt:,.2f} 元"
     return kept, excluded, note
 
 
 def collect_from_aggregate(
     aggregate, cfg: dict
-) -> tuple[list[Txn], list[Txn], str]:
+) -> tuple[list[Txn], list[tuple[Txn, str]], str]:
     from expense_core.models import ParseAggregate
 
     agg: ParseAggregate = aggregate
-    merged, _ = dedupe_transactions(agg.primary, agg.bank)
+    merged, dedupe_excluded = dedupe_transactions(agg.primary, agg.bank)
     refunds = agg.auxiliary.get("boc.refunds", [])
     merged = cancel_refunded(merged, refunds)
-    return apply_pure_filter(merged, cfg)
+    kept, pure_excluded, note = apply_pure_filter(merged, cfg)
+    pure = cfg.get("pure_spending", {})
+    if not pure.get("enabled", True):
+        return kept, dedupe_excluded, note
+    excluded = dedupe_excluded + pure_excluded
+    if excluded:
+        excl_amt = sum(t.amount for t, _ in excluded)
+        note = (
+            f"已剔除转账/房租/取现/理财等 {len(excluded)} 笔，共 {excl_amt:,.2f} 元"
+        )
+    return kept, excluded, note

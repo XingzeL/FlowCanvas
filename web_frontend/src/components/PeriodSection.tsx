@@ -1,12 +1,18 @@
 import { useState } from "react";
 import type { PeriodPayload } from "../types";
 import { fmt } from "../utils/format";
+import {
+  formatDetailLimitMeta,
+  sliceDetailRows,
+  type CategoryDetailLimit,
+} from "../utils/categoryDetailLimit";
 
 type Props = {
   period: PeriodPayload;
   defaultOpen?: boolean;
   open?: boolean;
   onToggle?: () => void;
+  detailLimit?: CategoryDetailLimit;
 };
 
 export function PeriodSection({
@@ -14,6 +20,7 @@ export function PeriodSection({
   defaultOpen = false,
   open: controlledOpen,
   onToggle,
+  detailLimit = 20,
 }: Props) {
   const [internalOpen, setInternalOpen] = useState(defaultOpen);
   const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
@@ -73,22 +80,30 @@ export function PeriodSection({
               ))}
             </tbody>
           </table>
-          {period.details.map((d) => (
-            <div key={d.name} style={{ marginTop: 12 }}>
-              <h3>{d.name}</h3>
-              <p className="muted">{d.meta}</p>
-              <table className="data">
-                <tbody>
-                  {d.rows.map((row, i) => (
-                    <tr key={i}>
-                      <td>{row[0]}</td>
-                      <td className="num">{row[1]}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ))}
+          {period.details.map((d) => {
+            const cat = period.categories.find((c) => c.name === d.name);
+            const totalRows = d.rows.length;
+            const visibleRows = sliceDetailRows(d.rows, detailLimit);
+            const amountLabel = cat ? fmt(cat.amount) : "—";
+            const meta = formatDetailLimitMeta(visibleRows.length, totalRows, amountLabel);
+
+            return (
+              <div key={d.name} style={{ marginTop: 12 }}>
+                <h3>{d.name}</h3>
+                <p className="muted">{meta}</p>
+                <table className="data">
+                  <tbody>
+                    {visibleRows.map((row, i) => (
+                      <tr key={i}>
+                        <td>{row[0]}</td>
+                        <td className="num">{row[1]}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

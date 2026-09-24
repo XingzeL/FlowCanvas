@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { analyzeFiles, fetchParsers } from "./api";
 import { AmountDistributionChart } from "./components/dashboard/AmountDistributionChart";
 import { CategoryLists } from "./components/dashboard/CategoryLists";
@@ -9,14 +9,35 @@ import { MonthlyDetails } from "./components/dashboard/MonthlyDetails";
 import { PeriodTrendChart } from "./components/dashboard/PeriodTrendChart";
 import { SettingsSection } from "./components/dashboard/SettingsSection";
 import { BucketSection } from "./components/BucketSection";
+import { CategoryStackSection } from "./components/insights/CategoryStackSection";
+import { ExcludedDetailSection } from "./components/insights/ExcludedDetailSection";
+import { PeriodCompareSection } from "./components/insights/PeriodCompareSection";
+import { PlatformShareSection } from "./components/insights/PlatformShareSection";
+import { RecurringSection } from "./components/insights/RecurringSection";
+import { SpendingCalendarSection } from "./components/insights/SpendingCalendarSection";
 import { AnalysisToolbar } from "./components/upload/AnalysisToolbar";
 import { DataSourceCards } from "./components/upload/DataSourceCards";
 import { useScrollSpy } from "./hooks/useScrollSpy";
 import { DashboardShell } from "./layout/DashboardShell";
 import type { FullReport, Granularity, ParserInfo } from "./types";
+import { useCategoryDetailLimit } from "./utils/categoryDetailLimit";
 
 const PARSER_IDS = ["alipay", "wechat", "cmb", "boc"];
-const SECTION_IDS = ["overview", "category", "catlist", "period", "large", "monthly", "settings"];
+const SECTION_IDS = [
+  "overview",
+  "large",
+  "catlist",
+  "monthly",
+  "period",
+  "category",
+  "platform",
+  "excluded",
+  "catTrend",
+  "calendar",
+  "recurring",
+  "compare",
+  "settings",
+];
 
 const LS_GRANULARITY = "flowcanvas_granularity";
 const LS_PURE = "flowcanvas_pure_spending";
@@ -43,10 +64,11 @@ export default function App() {
   const [largeThreshold, setLargeThreshold] = useState(() =>
     loadPref(LS_THRESHOLD, 500, Number),
   );
+  const [detailLimit, setDetailLimit] = useCategoryDetailLimit();
   const [report, setReport] = useState<FullReport | null>(null);
+  const [fileInputKey, setFileInputKey] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const autoAnalyzed = useRef(false);
 
   const { activeId, scrollTo } = useScrollSpy(
     report ? SECTION_IDS : ["settings"],
@@ -104,14 +126,14 @@ export default function App() {
     }
   }, [files, granularity, pureSpending, largeThreshold]);
 
-  const hasFile = Object.values(files).some(Boolean);
+  const onClearFiles = useCallback(() => {
+    setFiles({});
+    setReport(null);
+    setError(null);
+    setFileInputKey((k) => k + 1);
+  }, []);
 
-  useEffect(() => {
-    if (hasFile && !autoAnalyzed.current && !report && !loading) {
-      autoAnalyzed.current = true;
-      onAnalyze();
-    }
-  }, [hasFile, report, loading, onAnalyze]);
+  const hasFile = Object.values(files).some(Boolean);
 
   return (
     <DashboardShell
@@ -121,6 +143,7 @@ export default function App() {
       dateRange={report?.meta.dateRange}
     >
       <DataSourceCards
+        key={fileInputKey}
         parsers={parserList}
         files={files}
         onFileChange={onFileChange}
@@ -135,14 +158,35 @@ export default function App() {
         largeThreshold={largeThreshold}
         onLargeThresholdChange={setLargeThreshold}
         onAnalyze={onAnalyze}
+        onClearFiles={onClearFiles}
         loading={loading}
         hasFile={hasFile}
+        hasReport={!!report}
         error={error}
       />
 
       {report && (
         <>
           <KpiCards meta={report.meta} trends={report.meta.trends} />
+
+          <section className="section-block detail-block">
+            <LargeTxnTable
+              txns={report.largeTxns}
+              threshold={report.meta.largeThreshold}
+              total={report.meta.total}
+            />
+            <CategoryLists
+              categories={report.categories}
+              details={report.categoryDetails}
+              detailLimit={detailLimit}
+              onDetailLimitChange={setDetailLimit}
+            />
+            <MonthlyDetails
+              report={report}
+              detailLimit={detailLimit}
+              onDetailLimitChange={setDetailLimit}
+            />
+          </section>
 
           <div className="section-block dashboard-grid">
             <div id="period">
@@ -152,16 +196,14 @@ export default function App() {
               />
             </div>
             <CategoryOverview categories={report.categories} />
-            <AmountDistributionChart buckets={report.amountBuckets} />
-            <LargeTxnTable txns={report.largeTxns} />
           </div>
 
-          <CategoryLists
-            categories={report.categories}
-            details={report.categoryDetails}
-          />
-
-          <section className="section-block">
+          <section className="section-block amount-bucket-block">
+            <AmountDistributionChart
+              buckets={report.amountBuckets}
+              txnCount={report.meta.txnCount}
+              total={report.meta.total}
+            />
             <BucketSection
               buckets={report.amountBuckets}
               bucketsMerged={report.amountBucketsMerged}
@@ -170,7 +212,32 @@ export default function App() {
             />
           </section>
 
-          <MonthlyDetails report={report} />
+          <section className="section-block insights-block">
+            {!!report.platformShare?.length && (
+              <PlatformShareSection
+                platformShare={report.platformShare}
+                sources={report.meta.sources}
+              />
+            )}
+            {report.meta.pureSpending && (
+              <ExcludedDetailSection excludedDetail={report.excludedDetail} />
+            )}
+            {!!report.categoryTrend?.keys.length &&
+              !!report.categoryTrend.series.length && (
+                <CategoryStackSection categoryTrend={report.categoryTrend} />
+              )}
+            {!!report.spendingCalendar?.days.length && (
+              <SpendingCalendarSection
+                spendingCalendar={report.spendingCalendar}
+              />
+            )}
+            {!!report.recurring?.length && (
+              <RecurringSection items={report.recurring} />
+            )}
+            {report.periods.length >= 2 && (
+              <PeriodCompareSection periods={report.periods} />
+            )}
+          </section>
         </>
       )}
 

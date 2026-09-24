@@ -4,17 +4,22 @@ from datetime import date, timedelta
 
 from expense_core.classifiers.factory import create_classifier
 from expense_core.config import default_config_path
-from expense_core.models import Granularity, Report, Txn
+from expense_core.models import Granularity, PeriodSlice, Report, Txn
 from expense_core.periods import iter_period_ranges
+from expense_core.insights.exclusions import build_excluded_detail
+from expense_core.insights.recurring import detect_recurring
 from expense_core.stats import (
     amount_bucket_label,
     bucket_category_breakdown,
     build_buckets,
     category_stats,
+    category_trend,
     classify_transactions,
+    daily_spending_map,
     daily_totals,
     fmt_item_row,
     merged_bucket_label,
+    platform_breakdown,
     txn_key,
 )
 
@@ -64,7 +69,6 @@ def build_period_payload(
     daily = daily_totals(report.transactions, report.date_start, report.date_end)
     buckets = build_buckets(report.transactions, amount_bucket_label)
     buckets_merged = build_buckets(report.transactions, merged_bucket_label)
-    show_all = set(cfg.get("detail_show_all_categories", []))
 
     max_txn = max((t.amount for t in report.transactions), default=0)
     top2_pct = 0.0
@@ -73,14 +77,12 @@ def build_period_payload(
 
     details = []
     for c in cats:
-        limit = len(c["items"]) if c["name"] in show_all else min(10, len(c["items"]))
-        rows = [list(fmt_item_row(t)) for t in c["items"][:limit]]
-        meta = (
-            f"全部 {c['count']} 笔 · {c['amount']:,.2f} 元"
-            if c["name"] in show_all
-            else f"Top {limit} / 共 {c['count']} 笔 · {c['amount']:,.2f} 元"
-        )
-        details.append({"name": c["name"], "meta": meta, "rows": rows})
+        rows = [list(fmt_item_row(t)) for t in c["items"]]
+        details.append({
+            "name": c["name"],
+            "meta": f"共 {c['count']} 笔 · {c['amount']:,.2f} 元",
+            "rows": rows,
+        })
 
     peak_days = sorted(
         ((report.date_start + timedelta(days=i), daily[i]) for i in range(len(daily))),
@@ -140,6 +142,16 @@ def _slice_amounts(
     return pure_total, pure_count, excl_total, excl_count, gross_total, count_all, pure_pct
 
 
+def _period_chart_label(s: PeriodSlice, granularity: Granularity) -> str:
+    if granularity == "month":
+        return f"{s.start.month}月"
+    if granularity == "week":
+        return f"{s.start.strftime('%m-%d')}周"
+    if granularity == "day":
+        return s.start.strftime("%m-%d")
+    return s.label
+
+
 def _calc_trends(period_payloads: list[dict]) -> dict:
     if len(period_payloads) < 2:
         return {"totalPct": None, "countPct": None, "label": None}
@@ -170,6 +182,7 @@ def build_full_report(
     sources: dict | None = None,
     classifier=None,
     config_path=None,
+    excluded_with_reason: list[tuple[Txn, str]] | None = None,
 ) -> dict:
     import os
 
@@ -190,6 +203,24 @@ def build_full_report(
         )
 
     label_map = classify_transactions(year_report.transactions, clf)
+
+    if excluded_with_reason is not None:
+        excluded_in_range_for_labels = [
+            (t, reason) for t, reason in excluded_with_reason if d0 <= t.dt <= d1
+        ]
+    elif pure_spending and excluded:
+        excluded_in_range_for_labels = [
+            (t, "transfer") for t in excluded if d0 <= t.dt <= d1
+        ]
+    else:
+        excluded_in_range_for_labels = []
+
+    investment_txns = [
+        t for t, reason in excluded_in_range_for_labels if reason == "investment"
+    ]
+    if investment_txns:
+        label_map = {**label_map, **classify_transactions(investment_txns, clf)}
+
     year_payload = build_period_payload(year_report, cfg, label_map=label_map)
 
     day_txns = kept + excluded if granularity == "day" else kept
@@ -204,6 +235,7 @@ def build_full_report(
             continue
         p = build_period_payload(r, cfg, label_map=label_map)
         p["key"] = s.key
+        p["chartLabel"] = _period_chart_label(s, granularity)
         p["grossTotal"] = round(gross_total, 2)
         p["countAll"] = count_all
         p["purePct"] = pure_pct
@@ -212,7 +244,7 @@ def build_full_report(
     period_totals = [
         {
             "key": p["key"],
-            "label": p.get("title", p["key"]).split(" ")[0],
+            "label": p.get("chartLabel", p["key"]),
             "total": p["total"],
             "count": p["txnCount"],
             "totalPure": p["total"],
@@ -263,6 +295,8 @@ def build_full_report(
         "mode", "keyword"
     )
 
+    excluded_in_range = excluded_in_range_for_labels
+
     meta = {
         "dateStart": d0.isoformat(),
         "dateEnd": d1.isoformat(),
@@ -302,4 +336,15 @@ def build_full_report(
         "bucketCategoriesMerged": bucket_cats_merged,
         "largeTxns": large_rows,
         "periods": period_payloads,
+        "platformShare": platform_breakdown(year_report.transactions),
+        "excludedDetail": (
+            build_excluded_detail(excluded_in_range)
+            if pure_spending and excluded_in_range
+            else None
+        ),
+        "categoryTrend": category_trend(period_payloads),
+        "spendingCalendar": daily_spending_map(year_report.transactions),
+        "recurring": detect_recurring(
+            year_report.transactions + investment_txns, label_map, cfg
+        ),
     }

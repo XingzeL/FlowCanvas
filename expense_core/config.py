@@ -23,7 +23,7 @@ DEFAULT_CONFIG: dict = {
         "api_base": "https://api.openai.com/v1",
         "model": "gpt-4o-mini",
         "batch_size": 30,
-        "timeout_seconds": 60,
+        "timeout_seconds": 15,
     },
     "category_rules": {},
     "detail_show_all_categories": ["会员订阅", "通讯话费", "生活缴费", "其他"],

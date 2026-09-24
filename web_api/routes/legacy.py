@@ -135,7 +135,8 @@ async def analyze(
             f"未能解析到任何交易记录。错误: {errors or '无 primary/bank 数据'}",
         )
 
-    kept, excluded, note = collect_from_aggregate(aggregate, cfg)
+    kept, excluded_records, note = collect_from_aggregate(aggregate, cfg)
+    excluded = [t for t, _ in excluded_records]
     label = f"{d0.year}.{d0.month:02d}–{d1.year}.{d1.month:02d}"
 
     try:
@@ -151,6 +152,7 @@ async def analyze(
             large_threshold=large_threshold,
             sources=_sources_status(aggregate),
             config_path=default_config_path(),
+            excluded_with_reason=excluded_records,
         )
     except RuntimeError as e:
         msg = str(e)

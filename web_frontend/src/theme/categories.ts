@@ -30,6 +30,23 @@ export const PLATFORM_LABELS: Record<string, string> = {
 
 const FALLBACK = ["#95aeda", "#9fd7e9", "#8aa4b5"];
 
+/** 9 档金额区间柱状图色序（Nature Communications） */
+export const BUCKET_BAR_COLORS = [
+  "#9fd7e9",
+  "#95aeda",
+  "#73c79e",
+  "#5299cc",
+  "#fcd590",
+  "#f4b69a",
+  "#f599a1",
+  "#a577ad",
+  "#b89cc8",
+] as const;
+
+export function getBucketBarColor(index: number): string {
+  return BUCKET_BAR_COLORS[index % BUCKET_BAR_COLORS.length];
+}
+
 export function getCategoryColor(name: string, index = 0): string {
   return CATEGORY_COLORS[name] ?? FALLBACK[index % FALLBACK.length];
 }

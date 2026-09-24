@@ -73,6 +73,43 @@ export type PeriodTotal = {
   countAll: number;
   purePct: number | null;
 };
+export type PlatformShare = {
+  platform: string;
+  amount: number;
+  count: number;
+  pct: number;
+};
+export type ExcludedItem = {
+  date: string;
+  platform: string;
+  description: string;
+  amount: number;
+};
+export type ExcludedGroup = {
+  reason: string;
+  label: string;
+  count: number;
+  amount: number;
+  items: ExcludedItem[];
+};
+export type ExcludedDetail = {
+  summary: { count: number; amount: number };
+  groups: ExcludedGroup[];
+};
+export type CategoryTrendSeries = { name: string; amounts: number[] };
+export type CategoryTrend = { keys: string[]; series: CategoryTrendSeries[] };
+export type SpendingDay = { date: string; amount: number; count: number };
+export type SpendingCalendar = { days: SpendingDay[]; maxAmount: number };
+export type RecurringItem = {
+  label: string;
+  category: string;
+  amount: number;
+  cadence: "monthly" | "quarterly";
+  annualEst: number;
+  confidence: "high" | "medium";
+  lastDate: string;
+  kind?: "subscription" | "investment";
+};
 export type FullReport = {
   meta: ReportMeta;
   periodTotals: PeriodTotal[];
@@ -84,6 +121,11 @@ export type FullReport = {
   bucketCategoriesMerged: BucketCategory[];
   largeTxns: LargeTxn[];
   periods: PeriodPayload[];
+  platformShare?: PlatformShare[];
+  excludedDetail?: ExcludedDetail | null;
+  categoryTrend?: CategoryTrend;
+  spendingCalendar?: SpendingCalendar;
+  recurring?: RecurringItem[];
 };
 export type ParserInfo = {
   id: string;

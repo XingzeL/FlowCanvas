@@ -1,14 +1,17 @@
 import { useMemo, useState } from "react";
 import type { PeriodPayload } from "../types";
+import type { CategoryDetailLimit } from "../utils/categoryDetailLimit";
 import { PeriodSection } from "./PeriodSection";
 
 /** 周 / 3 天粒度：虚拟列表 + 默认只展开最近一块 */
 export function VirtualPeriodList({
   periods,
   embedded = false,
+  detailLimit = 20,
 }: {
   periods: PeriodPayload[];
   embedded?: boolean;
+  detailLimit?: CategoryDetailLimit;
 }) {
   const [expandedKey, setExpandedKey] = useState<string | null>(
     periods.length ? periods[periods.length - 1].key : null,
@@ -29,6 +32,7 @@ export function VirtualPeriodList({
             period={p}
             open={expandedKey === p.key}
             onToggle={() => setExpandedKey(expandedKey === p.key ? null : p.key)}
+            detailLimit={detailLimit}
           />
         ))}
       </div>
@@ -40,9 +44,11 @@ export function VirtualPeriodList({
 export function DayPeriodView({
   periods,
   embedded = false,
+  detailLimit = 20,
 }: {
   periods: PeriodPayload[];
   embedded?: boolean;
+  detailLimit?: CategoryDetailLimit;
 }) {
   const byKey = useMemo(() => new Map(periods.map((p) => [p.key, p])), [periods]);
   const [selected, setSelected] = useState<string | null>(
@@ -93,7 +99,9 @@ export function DayPeriodView({
           ),
         )}
       </div>
-      {selectedPeriod && <PeriodSection period={selectedPeriod} defaultOpen />}
+      {selectedPeriod && (
+        <PeriodSection period={selectedPeriod} defaultOpen detailLimit={detailLimit} />
+      )}
     </div>
   );
 }

@@ -44,6 +44,51 @@ def test_fallback_classifier_uses_keyword_on_llm_failure():
     assert fallback.classify(_txn("其他")) == "其他"
 
 
+def test_fallback_skips_llm_when_keywords_cover_all():
+    rules = {"餐饮食品": ["美团", "肯德基"]}
+    llm_calls = 0
+
+    def mock_api(_base, _key, body):
+        nonlocal llm_calls
+        llm_calls += 1
+        import json
+
+        items = json.loads(body["messages"][1]["content"])
+        return json.dumps(
+            [{"id": row["id"], "category": "餐饮食品"} for row in items],
+            ensure_ascii=False,
+        )
+
+    llm = LLMClassifier(api_key="test-key", api_caller=mock_api)
+    fallback = FallbackClassifier(primary=llm, fallback=KeywordClassifier(rules))
+    txns = [_txn("美团外卖"), _txn("肯德基")]
+    assert fallback.classify_many(txns) == ["餐饮食品", "餐饮食品"]
+    assert llm_calls == 0
+
+
+def test_fallback_llm_only_for_unmatched():
+    rules = {"餐饮食品": ["美团"]}
+    llm_calls = 0
+
+    def mock_api(_base, _key, body):
+        nonlocal llm_calls
+        llm_calls += 1
+        import json
+
+        items = json.loads(body["messages"][1]["content"])
+        return json.dumps(
+            [{"id": row["id"], "category": "购物消费"} for row in items],
+            ensure_ascii=False,
+        )
+
+    llm = LLMClassifier(api_key="test-key", api_caller=mock_api)
+    fallback = FallbackClassifier(primary=llm, fallback=KeywordClassifier(rules))
+    txns = [_txn("美团"), _txn("未知商户A"), _txn("未知商户A 再次")]
+    result = fallback.classify_many(txns)
+    assert result == ["餐饮食品", "购物消费", "购物消费"]
+    assert llm_calls == 1
+
+
 def test_llm_classifier_parses_batch_response():
     rules: dict = {}
 

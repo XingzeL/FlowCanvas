@@ -63,7 +63,10 @@ def _build_llm_classifier(clf_cfg: dict) -> LLMClassifier:
         "model", "gpt-4o-mini"
     )
     batch_size = int(clf_cfg.get("batch_size", 30))
-    timeout = float(clf_cfg.get("timeout_seconds", 60))
+    timeout = float(
+        os.environ.get("EXPENSE_LLM_TIMEOUT_SECONDS")
+        or clf_cfg.get("timeout_seconds", 15)
+    )
     system_prompt = clf_cfg.get("system_prompt") or build_system_prompt()
     return LLMClassifier(
         api_key=api_key,

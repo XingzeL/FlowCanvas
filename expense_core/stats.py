@@ -225,6 +225,56 @@ def category_stats(
     return rows
 
 
+def platform_breakdown(txns: list[Txn]) -> list[dict]:
+    acc: dict[str, dict] = defaultdict(lambda: {"amount": 0.0, "count": 0})
+    for t in txns:
+        acc[t.platform]["amount"] += t.amount
+        acc[t.platform]["count"] += 1
+    total = sum(t.amount for t in txns) or 1.0
+    rows: list[dict] = []
+    for platform, data in sorted(acc.items(), key=lambda x: -x[1]["amount"]):
+        amt = data["amount"]
+        rows.append({
+            "platform": platform,
+            "amount": round(amt, 2),
+            "count": data["count"],
+            "pct": round(amt / total * 100, 1),
+        })
+    return rows
+
+
+def category_trend(period_payloads: list[dict]) -> dict:
+    keys = [p["key"] for p in period_payloads]
+    series: list[dict] = []
+    for name in CATEGORY_NAMES:
+        amounts: list[float] = []
+        for p in period_payloads:
+            cat_map = {c["name"]: c["amount"] for c in p.get("categories", [])}
+            amounts.append(round(cat_map.get(name, 0.0), 2))
+        if any(a > 0 for a in amounts):
+            series.append({"name": name, "amounts": amounts})
+    return {"keys": keys, "series": series}
+
+
+def daily_spending_map(txns: list[Txn]) -> dict:
+    by_day: dict[date, dict[str, float | int]] = defaultdict(
+        lambda: {"amount": 0.0, "count": 0}
+    )
+    for t in txns:
+        by_day[t.dt]["amount"] += t.amount
+        by_day[t.dt]["count"] += 1
+    days = [
+        {
+            "date": d.isoformat(),
+            "amount": round(v["amount"], 2),
+            "count": int(v["count"]),
+        }
+        for d, v in sorted(by_day.items())
+    ]
+    max_amount = max((d["amount"] for d in days), default=0.0)
+    return {"days": days, "maxAmount": round(max_amount, 2)}
+
+
 def fmt_item_row(t: Txn) -> tuple[str, str]:
     cp = re.sub(r"\s*\([^)]*\)", "", t.counterparty).strip()
     desc = t.description.strip()

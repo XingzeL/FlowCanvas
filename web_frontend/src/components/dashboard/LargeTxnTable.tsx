@@ -21,14 +21,34 @@ function PlatformBadge({ platform }: { platform: string }) {
   );
 }
 
-export function LargeTxnTable({ txns }: { txns: LargeTxn[] }) {
+export function LargeTxnTable({
+  txns,
+  threshold,
+  total,
+}: {
+  txns: LargeTxn[];
+  threshold?: number;
+  total?: number;
+}) {
   if (!txns.length) return null;
 
   const catIndex = new Map<string, number>();
+  const largeTotal = txns.reduce((sum, t) => sum + t.amount, 0);
 
   return (
-    <div className="dash-card" id="large">
-      <h3 className="dash-card-title">大额明细</h3>
+    <div className="dash-card large-txn-section" id="large">
+      <h3 className="dash-card-title">
+        大额明细{threshold != null ? `（≥ ${threshold} 元）` : ""}
+      </h3>
+      {(threshold != null || total != null) && (
+        <p className="muted large-txn-summary">
+          共 {txns.length} 笔，合计 {fmt(largeTotal)}
+          {total != null && total > 0
+            ? `（占全年 ${((largeTotal / total) * 100).toFixed(1)}%）`
+            : ""}
+          ，按金额从高到低。
+        </p>
+      )}
       <table className="data-table">
         <thead>
           <tr>

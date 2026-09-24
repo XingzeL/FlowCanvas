@@ -1,21 +1,32 @@
 import {
+  ArrowLeftRight,
   BarChart3,
   Calendar,
+  CalendarDays,
+  FilterX,
   FolderOpen,
   LayoutDashboard,
   Layers,
   List,
+  PieChart,
+  Repeat,
   Settings,
   Table2,
 } from "lucide-react";
 
 const NAV_ITEMS = [
   { id: "overview", label: "总览", icon: LayoutDashboard },
-  { id: "category", label: "分类", icon: Table2 },
-  { id: "catlist", label: "分类明细", icon: Layers },
-  { id: "period", label: "区间", icon: BarChart3 },
   { id: "large", label: "大额", icon: List },
-  { id: "monthly", label: "月度", icon: Calendar },
+  { id: "catlist", label: "分类明细", icon: Layers },
+  { id: "monthly", label: "区间详情", icon: Calendar },
+  { id: "period", label: "区间趋势", icon: BarChart3 },
+  { id: "category", label: "分类占比", icon: Table2 },
+  { id: "platform", label: "平台", icon: PieChart },
+  { id: "excluded", label: "剔除", icon: FilterX },
+  { id: "catTrend", label: "分类趋势", icon: BarChart3 },
+  { id: "calendar", label: "日历", icon: CalendarDays },
+  { id: "recurring", label: "订阅", icon: Repeat },
+  { id: "compare", label: "跨期", icon: ArrowLeftRight },
   { id: "settings", label: "设置", icon: Settings },
 ] as const;
 

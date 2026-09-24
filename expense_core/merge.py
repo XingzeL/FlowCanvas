@@ -54,7 +54,7 @@ def collect_from_directories(
     d1: date,
     cfg: dict,
     file_overrides: dict[str, Path] | None = None,
-) -> tuple[list[Txn], list[Txn], str, ParseAggregate]:
+) -> tuple[list[Txn], list[tuple[Txn, str]], str, ParseAggregate]:
     aggregates: list[ParseAggregate] = []
     used_overrides: set[str] = set()
     for directory in directories:
@@ -75,5 +75,5 @@ def collect_from_directories(
     if not aggregates:
         raise FileNotFoundError(f"未在任何目录找到流水文件: {directories}")
     merged = merge_aggregates(aggregates)
-    kept, excluded, note = collect_from_aggregate(merged, cfg)
-    return kept, excluded, note, merged
+    kept, excluded_records, note = collect_from_aggregate(merged, cfg)
+    return kept, excluded_records, note, merged

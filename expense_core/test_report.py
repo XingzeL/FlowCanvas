@@ -57,6 +57,8 @@ def test_period_totals_dual_series():
     assert jan["purePct"] == round(100 / 150 * 100, 1)
     assert jan["total"] == jan["totalPure"]
     assert jan["count"] == jan["countPure"]
+    assert jan["label"] == "1月"
+    assert report["periodTotals"][1]["label"] == "2月"
 
 
 def test_day_granularity_includes_excluded_only_day():
@@ -184,3 +186,92 @@ def test_category_details_in_full_report():
     assert "交通出行" in names
     food = next(d for d in report["categoryDetails"] if d["name"] == "餐饮食品")
     assert len(food["rows"]) >= 1
+
+
+def test_insight_fields_in_full_report():
+    kept = [
+        _txn(date(2026, 1, 5), 100, platform="支付宝"),
+        _txn(date(2026, 2, 10), 200, platform="微信"),
+    ]
+    excluded_records = [
+        (_txn(date(2026, 1, 6), 50, description="转账"), "wechat_transfer"),
+    ]
+    excluded = [t for t, _ in excluded_records]
+    note = "已剔除转账/房租/取现/理财等 1 笔，共 50.00 元"
+    cfg = dict(DEFAULT_CONFIG)
+    cfg["pure_spending"] = {"enabled": True}
+
+    report = build_full_report(
+        kept,
+        excluded,
+        note,
+        date(2026, 1, 1),
+        date(2026, 2, 28),
+        "2026.01–02",
+        cfg,
+        granularity="month",
+        excluded_with_reason=excluded_records,
+    )
+
+    assert "platformShare" in report
+    assert len(report["platformShare"]) == 2
+    assert report["platformShare"][0]["platform"] in ("支付宝", "微信")
+
+    assert report["excludedDetail"] is not None
+    assert report["excludedDetail"]["summary"]["count"] == 1
+
+    assert "categoryTrend" in report
+    assert report["categoryTrend"]["keys"] == ["2026-01", "2026-02"]
+    assert len(report["categoryTrend"]["series"]) >= 1
+
+    assert "spendingCalendar" in report
+    assert len(report["spendingCalendar"]["days"]) == 2
+    assert report["spendingCalendar"]["maxAmount"] == 200.0
+
+    assert "recurring" in report
+    assert isinstance(report["recurring"], list)
+
+
+def test_insight_fields_in_full_report():
+    kept = [
+        _txn(date(2026, 1, 5), 100, platform="支付宝"),
+        _txn(date(2026, 2, 10), 200, platform="微信"),
+    ]
+    excluded_records = [
+        (_txn(date(2026, 1, 6), 50, description="转账"), "transfer"),
+    ]
+    excluded = [t for t, _ in excluded_records]
+    note = "已剔除转账/房租/取现/理财等 1 笔，共 50.00 元"
+    cfg = dict(DEFAULT_CONFIG)
+    cfg["pure_spending"] = {"enabled": True}
+
+    report = build_full_report(
+        kept,
+        excluded,
+        note,
+        date(2026, 1, 1),
+        date(2026, 2, 28),
+        "2026.01–02",
+        cfg,
+        granularity="month",
+        excluded_with_reason=excluded_records,
+    )
+
+    assert "platformShare" in report
+    assert len(report["platformShare"]) == 2
+    assert report["platformShare"][0]["platform"] in {"支付宝", "微信"}
+
+    assert report["excludedDetail"] is not None
+    assert report["excludedDetail"]["summary"]["count"] == 1
+    assert report["excludedDetail"]["groups"][0]["reason"] == "transfer"
+
+    assert "categoryTrend" in report
+    assert report["categoryTrend"]["keys"] == ["2026-01", "2026-02"]
+    assert isinstance(report["categoryTrend"]["series"], list)
+
+    assert "spendingCalendar" in report
+    assert len(report["spendingCalendar"]["days"]) == 2
+    assert report["spendingCalendar"]["maxAmount"] == 200
+
+    assert "recurring" in report
+    assert isinstance(report["recurring"], list)

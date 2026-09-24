@@ -1,4 +1,4 @@
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, Trash2 } from "lucide-react";
 import type { Granularity } from "../../types";
 
 type Props = {
@@ -9,8 +9,10 @@ type Props = {
   largeThreshold: number;
   onLargeThresholdChange: (v: number) => void;
   onAnalyze: () => void;
+  onClearFiles: () => void;
   loading: boolean;
   hasFile: boolean;
+  hasReport: boolean;
   error: string | null;
 };
 
@@ -22,10 +24,14 @@ export function AnalysisToolbar({
   largeThreshold,
   onLargeThresholdChange,
   onAnalyze,
+  onClearFiles,
   loading,
   hasFile,
+  hasReport,
   error,
 }: Props) {
+  const canClear = hasFile || hasReport;
+
   return (
     <section className="toolbar-card">
       <div className="toolbar-row">
@@ -73,7 +79,17 @@ export function AnalysisToolbar({
           onClick={onAnalyze}
         >
           <RefreshCw size={16} className={loading ? "spin" : ""} />
-          {loading ? "分析中…" : "重新分析"}
+          {loading ? "分析中…" : hasReport ? "重新分析" : "开始分析"}
+        </button>
+
+        <button
+          type="button"
+          className="btn-secondary"
+          disabled={!canClear || loading}
+          onClick={onClearFiles}
+        >
+          <Trash2 size={16} />
+          一键清空
         </button>
       </div>
       {error && <div className="error-banner">{error}</div>}

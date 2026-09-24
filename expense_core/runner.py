@@ -26,7 +26,7 @@ ExportFormat = Literal["json", "markdown", "canvas", "catalog"]
 @dataclass
 class AnalysisResult:
     kept: list[Txn]
-    excluded: list[Txn]
+    excluded_records: list[tuple[Txn, str]]
     note: str
     aggregate: ParseAggregate
     d0: date
@@ -35,6 +35,10 @@ class AnalysisResult:
     files: dict[str, Path | None]
     data_dirs: list[Path]
     cfg: dict
+
+    @property
+    def excluded(self) -> list[Txn]:
+        return [t for t, _ in self.excluded_records]
 
 
 @dataclass
@@ -212,7 +216,7 @@ def run_analysis(
     )
 
     overrides = {k: v for k, v in files.items() if v is not None and explicit_files and k in explicit_files}
-    kept, excluded, note, aggregate = collect_from_directories(
+    kept, excluded_records, note, aggregate = collect_from_directories(
         reg, data_dirs, d0, d1, cfg, file_overrides=overrides or None
     )
 
@@ -222,7 +226,7 @@ def run_analysis(
 
     return AnalysisResult(
         kept=kept,
-        excluded=excluded,
+        excluded_records=excluded_records,
         note=note,
         aggregate=aggregate,
         d0=d0,
@@ -251,6 +255,7 @@ def build_json_report(
         granularity=granularity,
         large_threshold=large_threshold,
         sources=sources_status_dict(result.aggregate),
+        excluded_with_reason=result.excluded_records,
     )
 
 

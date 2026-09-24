@@ -2,13 +2,26 @@ import { useState } from "react";
 import type { Category, Detail } from "../../types";
 import { fmt } from "../../utils/format";
 import { getCategoryColor } from "../../theme/categories";
+import {
+  formatDetailLimitMeta,
+  sliceDetailRows,
+  type CategoryDetailLimit,
+} from "../../utils/categoryDetailLimit";
+import { CategoryDetailLimitSelect } from "./CategoryDetailLimitSelect";
 
 type Props = {
   categories: Category[];
   details: Detail[];
+  detailLimit: CategoryDetailLimit;
+  onDetailLimitChange: (limit: CategoryDetailLimit) => void;
 };
 
-export function CategoryLists({ categories, details }: Props) {
+export function CategoryLists({
+  categories,
+  details,
+  detailLimit,
+  onDetailLimitChange,
+}: Props) {
   const [open, setOpen] = useState<Record<string, boolean>>(() => {
     const init: Record<string, boolean> = {};
     details.forEach((d, i) => {
@@ -27,12 +40,19 @@ export function CategoryLists({ categories, details }: Props) {
 
   return (
     <section className="section-block" id="catlist">
-      <h2 className="section-title">分类明细</h2>
+      <div className="section-header-row">
+        <h2 className="section-title">分类明细</h2>
+        <CategoryDetailLimitSelect value={detailLimit} onChange={onDetailLimitChange} />
+      </div>
       <div className="dash-card category-lists-card">
         {details.map((detail, index) => {
           const cat = catMap[detail.name];
           const isOpen = open[detail.name];
           const color = getCategoryColor(detail.name, index);
+          const totalRows = detail.rows.length;
+          const visibleRows = sliceDetailRows(detail.rows, detailLimit);
+          const amountLabel = cat ? fmt(cat.amount) : detail.meta.split("·").pop()?.trim() ?? "—";
+          const meta = formatDetailLimitMeta(visibleRows.length, totalRows, amountLabel);
 
           return (
             <div key={detail.name} className="category-list-block">
@@ -60,7 +80,7 @@ export function CategoryLists({ categories, details }: Props) {
               </button>
               {isOpen && (
                 <div className="category-list-body">
-                  <p className="muted">{detail.meta}</p>
+                  <p className="muted">{meta}</p>
                   <table className="data">
                     <thead>
                       <tr>
@@ -69,7 +89,7 @@ export function CategoryLists({ categories, details }: Props) {
                       </tr>
                     </thead>
                     <tbody>
-                      {detail.rows.map((row, i) => (
+                      {visibleRows.map((row, i) => (
                         <tr key={i}>
                           <td>{row[0]}</td>
                           <td className="num">{row[1]}</td>
