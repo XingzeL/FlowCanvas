@@ -1,4 +1,21 @@
-export type Category = { name: string; amount: number; pct: number; count: number };
+export type SummaryStats = {
+  dailyAvg: number;
+  txnAvg: number;
+  medianTxn: number;
+  p90Txn: number;
+};
+
+export type Category = {
+  name: string;
+  amount: number;
+  pct: number;
+  count: number;
+  dailyAvg: number;
+  txnAvg: number;
+  countPct: number;
+  maxTxn: number;
+  txnAvgDeltaPct: number;
+};
 export type Bucket = { label: string; count: number; amount: number };
 export type Detail = { name: string; meta: string; rows: [string, string][] };
 export type PeriodPayload = {
@@ -47,6 +64,7 @@ export type ReportMeta = {
   dateRange: string;
   txnCount: number;
   total: number;
+  summary?: SummaryStats;
   periodAvg: number;
   maxPeriodTotal: number;
   maxPeriodLabel: string;

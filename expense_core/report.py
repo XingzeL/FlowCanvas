@@ -20,6 +20,7 @@ from expense_core.stats import (
     fmt_item_row,
     merged_bucket_label,
     platform_breakdown,
+    summary_stats,
     txn_key,
 )
 
@@ -114,6 +115,11 @@ def build_period_payload(
                 "amount": c["amount"],
                 "pct": c["pct"],
                 "count": c["count"],
+                "dailyAvg": c["dailyAvg"],
+                "txnAvg": c["txnAvg"],
+                "countPct": c["countPct"],
+                "maxTxn": c["maxTxn"],
+                "txnAvgDeltaPct": c["txnAvgDeltaPct"],
             }
             for c in cats
         ],
@@ -306,6 +312,7 @@ def build_full_report(
         "dateRange": f"{year_report.date_start} ~ {year_report.date_end}",
         "txnCount": year_payload["txnCount"],
         "total": year_payload["total"],
+        "summary": summary_stats(year_report.transactions),
         "periodAvg": period_avg,
         "maxPeriodTotal": max_period["total"] if max_period else 0,
         "maxPeriodLabel": max_period["key"] if max_period else "",

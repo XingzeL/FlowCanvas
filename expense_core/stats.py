@@ -193,6 +193,67 @@ def daily_totals(txns: list[Txn], d0: date, d1: date) -> list[float]:
     return [round(by_day.get(d0 + timedelta(days=i), 0.0), 2) for i in range(days)]
 
 
+def _percentile(values: list[float], p: float) -> float:
+    if not values:
+        return 0.0
+    sorted_vals = sorted(values)
+    n = len(sorted_vals)
+    if n == 1:
+        return sorted_vals[0]
+    k = (n - 1) * p / 100.0
+    f = int(k)
+    c = min(f + 1, n - 1)
+    if f == c:
+        return sorted_vals[f]
+    return sorted_vals[f] + (sorted_vals[c] - sorted_vals[f]) * (k - f)
+
+
+def summary_stats(txns: list[Txn]) -> dict:
+    if not txns:
+        return {
+            "dailyAvg": 0.0,
+            "txnAvg": 0.0,
+            "medianTxn": 0.0,
+            "p90Txn": 0.0,
+        }
+    total = sum(t.amount for t in txns)
+    count = len(txns)
+    spending_days = len({t.dt for t in txns})
+    amounts = [t.amount for t in txns]
+    return {
+        "dailyAvg": round(total / spending_days, 2),
+        "txnAvg": round(total / count, 2),
+        "medianTxn": round(_percentile(amounts, 50), 2),
+        "p90Txn": round(_percentile(amounts, 90), 2),
+    }
+
+
+def _category_public_fields(
+    items: list[Txn],
+    amt: float,
+    total_amt: float,
+    total_count: int,
+    global_txn_avg: float,
+) -> dict:
+    count = len(items)
+    spending_days = len({t.dt for t in items}) or 1
+    txn_avg = amt / count if count else 0.0
+    if global_txn_avg > 0:
+        txn_avg_delta = (txn_avg / global_txn_avg - 1) * 100
+    else:
+        txn_avg_delta = 0.0
+    return {
+        "amount": round(amt, 2),
+        "pct": round(amt / total_amt * 100, 1) if total_amt else 0.0,
+        "count": count,
+        "dailyAvg": round(amt / spending_days, 2),
+        "txnAvg": round(txn_avg, 2),
+        "countPct": round(count / total_count * 100, 1) if total_count else 0.0,
+        "maxTxn": round(max(t.amount for t in items), 2),
+        "txnAvgDeltaPct": round(txn_avg_delta, 1),
+    }
+
+
 def category_stats(
     txns: list[Txn],
     classifier: Classifier | None = None,
@@ -208,7 +269,9 @@ def category_stats(
     acc: dict[str, list[Txn]] = defaultdict(list)
     for t, cat in zip(txns, labels):
         acc[cat].append(t)
-    total = sum(t.amount for t in txns) or 1.0
+    total_amt = sum(t.amount for t in txns) or 1.0
+    total_count = len(txns) or 1
+    global_txn_avg = sum(t.amount for t in txns) / len(txns) if txns else 0.0
     rows = []
     for name in CATEGORY_NAMES:
         items = acc.get(name, [])
@@ -217,9 +280,7 @@ def category_stats(
         amt = sum(t.amount for t in items)
         rows.append({
             "name": name,
-            "amount": round(amt, 2),
-            "pct": round(amt / total * 100, 1),
-            "count": len(items),
+            **_category_public_fields(items, amt, total_amt, total_count, global_txn_avg),
             "items": sorted(items, key=lambda x: -x.amount),
         })
     return rows

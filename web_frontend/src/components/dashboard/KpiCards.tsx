@@ -1,4 +1,13 @@
-import { CalendarRange, Coins, Hash, TrendingUp, Wallet } from "lucide-react";
+import {
+  BarChart2,
+  CalendarDays,
+  CalendarRange,
+  Coins,
+  Hash,
+  LineChart,
+  TrendingUp,
+  Wallet,
+} from "lucide-react";
 import type { ReportMeta, ReportTrends } from "../../types";
 import { fmt, fmtPct } from "../../utils/format";
 
@@ -19,6 +28,7 @@ type Props = {
 };
 
 export function KpiCards({ meta, trends }: Props) {
+  const summary = meta.summary;
   const cards = [
     {
       icon: Wallet,
@@ -32,6 +42,34 @@ export function KpiCards({ meta, trends }: Props) {
       value: String(meta.txnCount),
       trend: trends.countPct,
     },
+    ...(summary
+      ? [
+          {
+            icon: CalendarDays,
+            label: "日均",
+            value: fmt(summary.dailyAvg),
+            trend: null,
+          },
+          {
+            icon: LineChart,
+            label: "笔均",
+            value: fmt(summary.txnAvg),
+            trend: null,
+          },
+          {
+            icon: BarChart2,
+            label: "中位数",
+            value: fmt(summary.medianTxn),
+            trend: null,
+          },
+          {
+            icon: TrendingUp,
+            label: "P90",
+            value: fmt(summary.p90Txn),
+            trend: null,
+          },
+        ]
+      : []),
     {
       icon: TrendingUp,
       label: "区间均值",

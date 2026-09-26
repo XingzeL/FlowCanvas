@@ -377,6 +377,12 @@ Bot `analyze` 的 `report` 字段与 Legacy `POST /api/analyze` 响应体结构�
     dateRange: string;
     txnCount: number;
     total: number;
+    summary?: {
+      dailyAvg: number;    // 总支出 ÷ 有消费天数
+      txnAvg: number;      // 笔均
+      medianTxn: number;   // 单笔中位数
+      p90Txn: number;      // 单笔 P90
+    };
     periodAvg: number;
     maxPeriodTotal: number;
     maxPeriodLabel: string;
@@ -406,7 +412,17 @@ Bot `analyze` 的 `report` 字段与 Legacy `POST /api/analyze` 响应体结构�
     countAll: number;
     purePct: number | null;
   }[];
-  categories: { name: string; amount: number; pct: number; count: number }[];
+  categories: {
+    name: string;
+    amount: number;
+    pct: number;
+    count: number;
+    dailyAvg: number;
+    txnAvg: number;
+    countPct: number;
+    maxTxn: number;
+    txnAvgDeltaPct: number;  // 相对全局笔均偏离 %
+  }[];
   amountBuckets: { label: string; count: number; amount: number }[];
   amountBucketsMerged: { label: string; count: number; amount: number }[];
   bucketCategories: BucketCategory[];
