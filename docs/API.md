@@ -160,6 +160,7 @@ Bot 请求中的以下字段均会校验是否落在 `EXPENSE_ALLOWED_ROOTS` 内
 | `wechat` | 微信 XLSX | `微信支付账单流水文件*.xlsx` |
 | `cmb` | 招行 PDF | `招商银行交易流水*.pdf` |
 | `boc` | 中行 PDF | `交易流水明细*.pdf` |
+| `citic` | 中信 PDF | `中信银行*.pdf` |
 
 ---
 
@@ -358,6 +359,7 @@ Canvas 文件可能较大（数 MB），生产环境建议 `inline=false` 并指
 | `wechat` | file | null | 微信 XLSX |
 | `cmb` | file | null | 招行 PDF |
 | `boc` | file | null | 中行 PDF |
+| `citic` | file | null | 中信 PDF |
 
 至少上传一个文件。响应为 **FullReport** 对象（与 Bot analyze 的 `report` 字段结构相同，但无 `inputs` 包装）。
 

@@ -3,9 +3,6 @@ import type { ParserInfo, ReportMeta } from "../../types";
 import { PLATFORM_COLORS, PLATFORM_LABELS } from "../../theme/categories";
 import { fmtFileSize } from "../../utils/format";
 
-const BANK_IDS = ["cmb", "boc"] as const;
-type BankId = (typeof BANK_IDS)[number];
-
 type Props = {
   parsers: ParserInfo[];
   files: Record<string, File | null>;
@@ -86,21 +83,22 @@ type BankCardProps = {
 
 function BankSourceCard({ parsers, files, onFileChange }: BankCardProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const bankParsers = parsers.filter((p) =>
-    (BANK_IDS as readonly string[]).includes(p.id),
-  );
-  const [selectedBank, setSelectedBank] = useState<BankId>(
-    (bankParsers[0]?.id as BankId) ?? "cmb",
+  const bankParsers = parsers.filter((p) => p.role === "bank");
+  const [selectedBank, setSelectedBank] = useState(
+    () => bankParsers[0]?.id ?? "",
   );
 
   const selectedParser =
     bankParsers.find((p) => p.id === selectedBank) ?? bankParsers[0];
-  const selectedFile = files[selectedBank];
-  const uploaded = BANK_IDS.filter((id) => files[id]).map((id) => ({
-    id,
-    label: PLATFORM_LABELS[id] ?? id,
-    file: files[id]!,
-  }));
+  const selectedId = selectedParser?.id ?? "";
+  const selectedFile = selectedId ? files[selectedId] : null;
+  const uploaded = bankParsers
+    .filter((p) => files[p.id])
+    .map((p) => ({
+      id: p.id,
+      label: PLATFORM_LABELS[p.id] ?? p.displayName,
+      file: files[p.id]!,
+    }));
 
   const bankStatus =
     uploaded.length === 0
@@ -109,6 +107,10 @@ function BankSourceCard({ parsers, files, onFileChange }: BankCardProps) {
 
   const hint =
     selectedParser?.filePatterns.join(" / ") || "点击选择 PDF 流水";
+
+  if (!bankParsers.length) {
+    return null;
+  }
 
   return (
     <div className="source-card source-card--bank">
@@ -126,8 +128,8 @@ function BankSourceCard({ parsers, files, onFileChange }: BankCardProps) {
             <span className="bank-select-label">选择银行</span>
             <select
               className="bank-select"
-              value={selectedBank}
-              onChange={(e) => setSelectedBank(e.target.value as BankId)}
+              value={selectedId}
+              onChange={(e) => setSelectedBank(e.target.value)}
               onClick={(e) => e.stopPropagation()}
             >
               {bankParsers.map((p) => (
@@ -151,12 +153,15 @@ function BankSourceCard({ parsers, files, onFileChange }: BankCardProps) {
         {selectedFile ? (
           <>
             <div className="source-card-file">
-              {PLATFORM_LABELS[selectedBank]} · {selectedFile.name}
+              {PLATFORM_LABELS[selectedId] ?? selectedParser?.displayName} ·{" "}
+              {selectedFile.name}
             </div>
             <div className="source-card-size">{fmtFileSize(selectedFile.size)}</div>
           </>
         ) : (
-          <div className="source-card-hint">上传 {PLATFORM_LABELS[selectedBank]} 流水 · {hint}</div>
+          <div className="source-card-hint">
+            上传 {PLATFORM_LABELS[selectedId] ?? "银行"} 流水 · {hint}
+          </div>
         )}
       </button>
 
@@ -179,7 +184,7 @@ function BankSourceCard({ parsers, files, onFileChange }: BankCardProps) {
                 className="bank-uploaded-switch"
                 onClick={() => setSelectedBank(id)}
               >
-                {selectedBank === id ? "当前" : "切换"}
+                {selectedId === id ? "当前" : "切换"}
               </button>
             </li>
           ))}
@@ -191,7 +196,7 @@ function BankSourceCard({ parsers, files, onFileChange }: BankCardProps) {
         type="file"
         hidden
         onChange={(e) =>
-          onFileChange(selectedBank, e.target.files?.[0] ?? null)
+          onFileChange(selectedId, e.target.files?.[0] ?? null)
         }
       />
     </div>
@@ -206,12 +211,17 @@ export function DataSourceCards({
 }: Props) {
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
-  const alipay = parsers.find((p) => p.id === "alipay");
-  const wechat = parsers.find((p) => p.id === "wechat");
-  const primaryCards = [
-    wechat && { parser: wechat, label: "微信" },
-    alipay && { parser: alipay, label: "支付宝" },
-  ].filter(Boolean) as { parser: ParserInfo; label: string }[];
+  const primaryCards = parsers
+    .filter((p) => p.role === "primary")
+    .map((parser) => ({
+      parser,
+      label:
+        parser.id === "wechat"
+          ? "微信"
+          : parser.id === "alipay"
+            ? "支付宝"
+            : parser.displayName,
+    }));
 
   return (
     <section className="section-block" id="upload">

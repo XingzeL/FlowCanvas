@@ -32,6 +32,7 @@ DEFAULT_CONFIG: dict = {
         "wechat": "微信支付账单流水文件*.xlsx",
         "cmb": "招商银行交易流水*.pdf",
         "boc": "交易流水明细*.pdf",
+        "citic": "中信银行*.pdf",
     },
 }
 

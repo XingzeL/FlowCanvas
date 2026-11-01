@@ -22,7 +22,6 @@ import { DashboardShell } from "./layout/DashboardShell";
 import type { FullReport, Granularity, ParserInfo } from "./types";
 import { useCategoryDetailLimit } from "./utils/categoryDetailLimit";
 
-const PARSER_IDS = ["alipay", "wechat", "cmb", "boc"];
 const SECTION_IDS = [
   "overview",
   "large",
@@ -76,7 +75,18 @@ export default function App() {
 
   useEffect(() => {
     fetchParsers()
-      .then(setParsers)
+      .then((list) => {
+        setParsers(list);
+        setFiles((prev) => {
+          const next = { ...prev };
+          for (const p of list) {
+            if (!(p.id in next)) {
+              next[p.id] = null;
+            }
+          }
+          return next;
+        });
+      })
       .catch((e) => setError(e.message));
   }, []);
 
@@ -92,18 +102,7 @@ export default function App() {
     localStorage.setItem(LS_THRESHOLD, String(largeThreshold));
   }, [largeThreshold]);
 
-  const parserList = useMemo(
-    () =>
-      parsers.length
-        ? parsers
-        : PARSER_IDS.map((id) => ({
-            id,
-            displayName: id,
-            role: "primary",
-            filePatterns: [],
-          })),
-    [parsers],
-  );
+  const parserList = useMemo(() => parsers, [parsers]);
 
   const onFileChange = useCallback((id: string, file: File | null) => {
     setFiles((prev) => ({ ...prev, [id]: file }));

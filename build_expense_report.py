@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-从四份固定格式流水（支付宝 CSV、微信 XLSX、招行/中行 PDF）解析支出，
+从多源流水（支付宝 CSV、微信 XLSX、招行/中行/中信 PDF 等，见 expense_config.json file_patterns）解析支出，
 去重后生成 expense-breakdown.canvas.tsx 与可选 Markdown 汇总。
 
 用法:

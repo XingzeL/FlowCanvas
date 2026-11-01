@@ -6,6 +6,7 @@ from typing import Any
 from expense_core.models import ParseAggregate, SourceStatus, Txn
 from expense_core.parsers.base import ParseInput, StatementParser
 from expense_core.parsers.alipay import AlipayCsvParser, infer_range_from_alipay_filename
+from expense_core.parsers.citic import infer_range_from_citic_filename
 
 
 class ParserRegistry:
@@ -106,6 +107,11 @@ class ParserRegistry:
             r = infer_range_from_alipay_filename(alipay.filename)
             if r:
                 return r
+        citic = uploads.get("citic")
+        if citic:
+            r = infer_range_from_citic_filename(citic.filename)
+            if r:
+                return r
         if parsed_txns:
             dates = [t.dt for t in parsed_txns]
             return min(dates), max(dates)
@@ -122,10 +128,17 @@ class ParserRegistry:
             for p in self._parsers.values()
         ]
 
+    def parser_ids(self) -> list[str]:
+        return list(self._parsers.keys())
+
+    def empty_files_map(self) -> dict[str, Path | None]:
+        return {pid: None for pid in self._parsers}
+
 
 def default_registry() -> ParserRegistry:
     from expense_core.parsers.alipay import AlipayCsvParser
     from expense_core.parsers.boc import BocPdfParser
+    from expense_core.parsers.citic import CiticPdfParser
     from expense_core.parsers.cmb import CmbPdfParser
     from expense_core.parsers.wechat import WechatXlsxParser
 
@@ -134,4 +147,5 @@ def default_registry() -> ParserRegistry:
     r.register(WechatXlsxParser())
     r.register(CmbPdfParser())
     r.register(BocPdfParser())
+    r.register(CiticPdfParser())
     return r

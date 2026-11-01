@@ -19,6 +19,19 @@ export const PLATFORM_COLORS: Record<string, string> = {
   微信: "#07C160",
   招行: "#E60012",
   中行: "#C8102E",
+  中信: "#D7000F",
+  招商银行: "#E60012",
+  中国银行: "#C8102E",
+  中信银行: "#D7000F",
+};
+
+/** 流水 Txn.platform（完整名称）→ 解析器 ID，用于与 meta.sources 对照 */
+export const PLATFORM_TO_PARSER_ID: Record<string, string> = {
+  支付宝: "alipay",
+  微信: "wechat",
+  招商银行: "cmb",
+  中国银行: "boc",
+  中信银行: "citic",
 };
 
 export const PLATFORM_LABELS: Record<string, string> = {
@@ -26,6 +39,7 @@ export const PLATFORM_LABELS: Record<string, string> = {
   wechat: "微信",
   cmb: "招行",
   boc: "中行",
+  citic: "中信",
 };
 
 const FALLBACK = ["#95aeda", "#9fd7e9", "#8aa4b5"];

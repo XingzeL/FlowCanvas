@@ -1,4 +1,4 @@
-import { PLATFORM_COLORS } from "../../theme/categories";
+import { PLATFORM_COLORS, PLATFORM_LABELS, PLATFORM_TO_PARSER_ID } from "../../theme/categories";
 import type { ReportMeta } from "../../types";
 import { fmt } from "../../utils/format";
 import { DonutChart } from "../charts/DonutChart";
@@ -10,12 +10,7 @@ export type PlatformShare = {
   pct: number;
 };
 
-const PLATFORM_SOURCE_IDS: Record<string, string> = {
-  支付宝: "alipay",
-  微信: "wechat",
-  招行: "cmb",
-  中行: "boc",
-};
+const PLATFORM_SOURCE_IDS = PLATFORM_TO_PARSER_ID;
 
 type Props = {
   platformShare: PlatformShare[];
@@ -32,12 +27,11 @@ export function PlatformShareSection({ platformShare, sources }: Props) {
     color: PLATFORM_COLORS[row.platform] ?? "#64748B",
   }));
 
-  const missingSources = Object.entries(PLATFORM_SOURCE_IDS)
-    .filter(([, id]) => {
-      const src = sources?.[id];
-      return !src || src.skipped || src.parsed === 0;
-    })
-    .map(([label]) => label);
+  const missingSources = sources
+    ? Object.entries(sources)
+        .filter(([, src]) => src.skipped || src.parsed === 0 || src.error)
+        .map(([id]) => PLATFORM_LABELS[id] ?? id)
+    : [];
 
   return (
     <div className="dash-card" id="platform">

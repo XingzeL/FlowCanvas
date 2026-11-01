@@ -83,7 +83,7 @@ def discover_files(
     explicit_files: dict[str, str | Path] | None = None,
 ) -> dict[str, Path | None]:
     if not dirs:
-        return {pid: None for pid in ("alipay", "wechat", "cmb", "boc")}
+        return registry.empty_files_map()
 
     files: dict[str, Path | None] = registry.discover_optional(dirs[0], cfg)
     for directory in dirs[1:]:

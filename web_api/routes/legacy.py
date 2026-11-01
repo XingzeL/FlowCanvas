@@ -14,6 +14,7 @@ from expense_core.config import (
 )
 from expense_core.parsers.base import ParseInput
 from expense_core.parsers.alipay import infer_range_from_alipay_content, infer_range_from_alipay_filename
+from expense_core.parsers.citic import infer_range_from_citic_filename
 from expense_core.parsers.registry import default_registry
 from expense_core.pipeline import collect_from_aggregate
 from expense_core.periods import infer_range_from_txns
@@ -30,6 +31,11 @@ def _infer_date_range(uploads: dict[str, ParseInput]) -> tuple[date, date]:
         if r:
             return r
         r = infer_range_from_alipay_content(alipay_inp.content)
+        if r:
+            return r
+    citic_inp = uploads.get("citic")
+    if citic_inp:
+        r = infer_range_from_citic_filename(citic_inp.filename)
         if r:
             return r
     wide_d0 = date(2000, 1, 1)
@@ -96,6 +102,7 @@ async def analyze(
     wechat: UploadFile | None = File(None),
     cmb: UploadFile | None = File(None),
     boc: UploadFile | None = File(None),
+    citic: UploadFile | None = File(None),
 ) -> dict:
     if granularity not in ("day", "3day", "week", "month"):
         raise HTTPException(400, f"Invalid granularity: {granularity}")
@@ -108,7 +115,7 @@ async def analyze(
     cfg["pure_spending"]["enabled"] = pure_spending
 
     uploads: dict[str, ParseInput] = {}
-    file_map = {"alipay": alipay, "wechat": wechat, "cmb": cmb, "boc": boc}
+    file_map = {"alipay": alipay, "wechat": wechat, "cmb": cmb, "boc": boc, "citic": citic}
     for pid, uf in file_map.items():
         if uf is not None and uf.filename:
             content = await uf.read()

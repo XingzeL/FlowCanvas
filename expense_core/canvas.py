@@ -71,6 +71,9 @@ def render_canvas(report: Report, cfg: dict, template_path: Path, out_path: Path
         for b in payload["amountBucketsMerged"]
     )
 
+    detail_entries_join = ",\n".join(detail_entries)
+    detail_blocks_join = "\n".join(detail_blocks)
+
     data_section = f"""
 const CATEGORIES = [
 {cat_lines}
@@ -80,7 +83,7 @@ const DAILY = {js_array_numbers(payload["daily"])};
 
 type Item = [string, string];
 
-{chr(10).join(detail_blocks)}
+{detail_blocks_join}
 
 const AMOUNT_BUCKETS = [
 {bucket_lines}
@@ -91,7 +94,7 @@ const AMOUNT_BUCKETS_MERGED = [
 ];
 
 const DETAILS: {{ name: string; meta: string; rows: Item[] }}[] = [
-{",\n".join(detail_entries)}
+{detail_entries_join}
 ];
 
 const REPORT_META = {{
